@@ -34,6 +34,7 @@ wsServer = new WebSocketServer({httpServer: server}); //create the server, needs
 
 /*-----------------------------------------------------
 Set the callback function for WebSocket server connection accepted:
+request: The server request object.
 -----------------------------------------------------*/
 wsServer.on("request", function(request) {
 	var m_hConnection = request.accept(null, request.origin);
@@ -62,6 +63,10 @@ wsServer.on("request", function(request) {
 					var hUser = hJSON.data;
 					vClients[m_iIndex].m_sName = hUser.author;//Remove from list
 					vClients[m_iIndex].m_iStage = 3;//Fully connected/authorized
+					if (!authenticate(vClients[m_iIndex].m_pSocket, 'TODO')) {
+						//TODO reject client
+						return;
+					}
 					tools.sendCode(vClients[m_iIndex].m_pSocket, 'setCon', 3)
 					broadcastString(vClients, 'text', "New user '" + hUser.author + "' has joined")
 				}
@@ -71,7 +76,8 @@ wsServer.on("request", function(request) {
 		}
 	});
 	/*-----------------------------------------------------
-	Callback for client that closed the connection. Delete the connection
+	Callback for client that closed the connection. Deletes the CClient socket from the array.
+	connection: The connection object that closed.
 	-----------------------------------------------------*/
 	m_hConnection.on("close", function(connection) {
 		vClients[m_iIndex].m_iStage = 0;
@@ -81,8 +87,8 @@ wsServer.on("request", function(request) {
 });
 
 /*-----------------------------------------------------
-Display a text package add line to list ctrl
-[time, text, color, author]
+Display a text message package add it to the list ctrl.
+hJSON: An ojbect containing {time, text, color, author}.
 -----------------------------------------------------*/
 function displayTextMessage(hJSON) {
 	if (hJSON.type == 'text' || hJSON.type == 'asis') {
@@ -93,32 +99,35 @@ function displayTextMessage(hJSON) {
 		console.log('Unrecognized text package: ', hJSON);
 	}
 }
-
 /*-----------------------------------------------------
 Broadcast a message to all connected clients:
+vClients: Array of current CClient instances.
+sType:    The type of string, usually 'text' or 'asis'.
+sOut:     The data to send.
 -----------------------------------------------------*/
-function broadcastString(vClients, type, strOut){
-	if (type == 'text') {
+function broadcastString(vClients, sType, sOut){
+	if (sType == 'text') {
 		time = (new Date()).getTime();
-		console.log('[' + tools.stringifyTime(time) + '] (Admin): ' + strOut);
+		console.log('[' + tools.stringifyTime(time) + '] (Admin): ' + sOut);
 	}
 	else { //as-is
-		//console.log(strOut);
-		var hJSON = tools.parseJSON(strOut);
+		//console.log(sOut);
+		var hJSON = tools.parseJSON(sOut);
 		displayTextMessage(hJSON);//Show for admin
 	}
-	for (var i=0; i < vClients.length; i++) {
+	for (var i=0; i < vClients.length; i++) { //Cycle through all active clients and send the data to them.
 		if (vClients[i] != null && vClients[i].m_iStage > 1)
-			if (type == 'text') {
-				tools.sendTextMessage(vClients[i].m_pSocket, strOut, "Admin", strColor="green")
+			if (sType == 'text') {
+				tools.sendTextMessage(vClients[i].m_pSocket, sOut, "Admin")
 			}
 			else //'asis' Broadcast a buffer as-is
-				vClients[i].m_pSocket.send(strOut)
+				vClients[i].m_pSocket.send(sOut)
 	}
 };
 /*-----------------------------------------------------
-Find a client index by its socket connection
-[time, text, color, author]
+Find a client index in the array by its socket connection.
+UNUSED
+returns 0-based integer index.
 -----------------------------------------------------*/
 function getClientIndex(connection) {
 	for (var i = 0; i < vClients.length; i++) {
@@ -134,9 +143,10 @@ function getClientIndex(connection) {
 }
 
 /*-----------------------------------------------------
-Display a text package add line to list ctrl
-[time, key, author]
+TODO: Perform any authentication steps here with the client data.
+data: Data received from the client requesting authorization.
 -----------------------------------------------------*/
-function authenticate(socket, data) {
-	log('Sending authentication...');
+function authenticate(hSocket, data) {
+	console.log('Checking user authentication...');
+	return true;//Success
 }
