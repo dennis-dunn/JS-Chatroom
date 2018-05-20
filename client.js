@@ -1,22 +1,31 @@
 var bHosting = 0;
 var iConStage = 0;
-var strText = "";
+var sText = "";
 var hSocket = null;
 var socketListen;
-var strUserName = "A";
+var sUserName = "A";
+var _sIP = "";
 
-document.getElementById("idSend").disabled = true;
-document.getElementById("idText").disabled = true;
+//Initialization:
+setCon(0);//Set initial controls' states
 
-//CLIENT SIDE:
-//Display text add line to list ctrl
+/*=====================================================
+CLIENT SIDE functions
+=====================================================*/
+
+/*-----------------------------------------------------
+Display text add line to list ctrl.
+message: Plain text to print onto the cleint's list control.
+-----------------------------------------------------*/
 function log(message) {
 	var li = document.createElement('li');
 	li.innerHTML = message;
 	document.getElementById('message-list').appendChild(li);
 }
-/*Display a text package add line to list ctrl
-[time, text, color, author]*/
+/*-----------------------------------------------------
+Display a JSON package as a text line in the server console output.
+hJSON : Object tree containing the info: {time, text, color, author}
+-----------------------------------------------------*/
 function displayTextMessage(hJSON) {
 	if (hJSON.type == 'text') {
 		var hMessagePacket = hJSON.data;
@@ -26,6 +35,9 @@ function displayTextMessage(hJSON) {
 		log('<span style="color:red;">Unknown package: '+ hJSON + '</span>');
 	}
 }
+/*-----------------------------------------------------
+Initiates a connection to a server, such as pressing the connect button.
+-----------------------------------------------------*/
 function onConnect() {
 	if (iConStage == 0)
 		connect();
@@ -37,112 +49,134 @@ function onConnect() {
 		}
 	}
 }
-//Handle some values and controls for various connection stages
+/*-----------------------------------------------------
+Handle some values and controls for various connection stages
+iStage: Integer corresponding to the client's authorization stage.
+		0: Disconnected
+		1: Attampting to contact the server
+		2: Connected, awaiting server authorization request.
+		3: Fully connected, server has granted authorization.
+-----------------------------------------------------*/
 function setCon(iStage) {
 	//log('setCon ' + iStage)
-	iConStage = iStage; //Fully connected now
-	document.getElementById("idSend").disabled = (iConStage != 0);
+	
+	document.getElementById("idSend").disabled = (iStage != 0);
 
-	document.getElementById("idIP").disabled = (iConStage > 0);
-	document.getElementById("idUserName").disabled = (iConStage > 0);
-	document.getElementById("idSend").disabled = (iConStage < 3); //Can't send until fully authenticated
-	document.getElementById("idText").disabled = (iConStage < 3); //Can't send until fully authenticated
-	if (iConStage == 0){ //closeCon
-		log('<span style="color:black;">Client disconnected</span>');
+	document.getElementById("idIP").disabled = (iStage > 0);
+	document.getElementById("idUserName").disabled = (iStage > 0);
+	document.getElementById("idSend").disabled = (iStage < 3); //Can't send until fully authenticated
+	document.getElementById("idText").disabled = (iStage < 3); //Can't send until fully authenticated
+	if (iStage == 0){ //closeCon
+		if (iConStage != 0) //Only display if previously connected
+			log('<span style="color:black;">Client disconnected</span>');
 		document.getElementById("idConnect").innerHTML = "Connect";
 	}
-	else if (iConStage > 0) {
+	else if (iStage > 0) {
 		document.getElementById("idConnect").innerHTML = "Disconnect";
 	}
-
+	iConStage = iStage; //Fully connected now
 }
 /*-----------------------------------------------------
 User needs to authenticate with the server
+hSocket: The socket object to send authentication to
+data: Unused, could contain authorzation key, etc. from the server
 -----------------------------------------------------*/
 function authenticate(hSocket, data) {
 	log('Sending authentication...');
-	tools.sendAuthentication(hSocket,'OK',strUserName)
+	//TODO: authenticate the client here
+	tools.sendAuthentication(hSocket,'OK',sUserName);//Send authentication data (password, key, etc) to the server
 }
 /*-----------------------------------------------------
-Handle codes
+Handle received command codes.
+hSocket: The socket object that received the code package
+data: an object package containing {code, value} pair.
 -----------------------------------------------------*/
 function handleCode(hSocket, data) {
 	if (data.code == 'setCon')
 		setCon(data.value);
-	else
+	//else if (data.code == '...') //TODO: Handle more codes here
+	else //Unknown command code
 		log('<span style="color:red;">Unknown code received ' + data.value + '</span>');
 }
 /*-----------------------------------------------------
-Create a socket and try to connect to a listener
+Initiates a connection to a listening server by creating a socket.
+All fcuntions contained inside
 -----------------------------------------------------*/
 function connect() {
-	strUserName = document.getElementById("idUserName").value
-	_strIP = document.getElementById("idIP").value
-	setCon(1);
-	log('Client "' + strUserName + '" is connecting...');
+	sUserName = document.getElementById("idUserName").value
+	_sIP = document.getElementById("idIP").value
+	setCon(1);//Connection initaited, requesting server to accept
+	log('Client "' + sUserName + '" is connecting...');
 	
-	// Create a socket instance
-	try {
-		hSocket = new WebSocket('ws://' + _strIP);//was ws://localhost:8080');
+	try { // Create a socket instance
+		hSocket = new WebSocket('ws://' + _sIP);//was ws://localhost:8080');
 	}
-	catch {
-		log('<span style="color:red;">Client couldn\'t connect to host ' + _strIP + '</span>');
+	catch (e) {
+		log('<span style="color:red;">Client couldn\'t connect to host ' + _sIP + '</span>');
 		return;
 	}
-	//(socket.readyState == "CONNECTING")
-	//(socket.readyState == "OPEN")
-	//Once the connection to a server is successful
+	/*-----------------------------------------------------
+	Callback override for once the connection to a server is successful
+	-----------------------------------------------------*/
 	hSocket.onopen = function(event) { 
 		log('<span style="color:green;">Connection successful!</span>');
-		// Send an initial message:
-		//tools.sendTextMessage(hSocket,"Hello!", strUserName) //Can't send messages until stage3 clearance
 		setCon(2);//Able to send/receive authentication now
-		// Listen for messages
+		/*-----------------------------------------------------
+		Listen for messages
+		event: An event containing {type, data, ...}
+		-----------------------------------------------------*/
 		hSocket.onmessage = function(event) { // [type data]
 			if (event.type == 'message') {//received a message of some type
-				//log('onmessage: ' + event.data); 
-				var hJSON = tools.parseJSON(event.data);
+				//In the case of a message, the data will be a JSON text string
+				var hJSON = tools.parseJSON(event.data);//Parse into an object {type, ...}
 				if (hJSON.type == 'text')
-					displayTextMessage(hJSON);
-				else if (hJSON.type == 'auth')
+					displayTextMessage(hJSON);//forward the whole object directly to be handled
+				else if (hJSON.type == 'auth') //Authorization request from server
 					authenticate(hSocket, hJSON.data);
-				else if (hJSON.type == 'code')
+				else if (hJSON.type == 'code') //Generic command code received
 					handleCode(hSocket, hJSON.data);
 			}
 		}
-		
-		// Listen for socket closure
+		/*-----------------------------------------------------
+		Callback override for when the current socket closes
+		event: 
+		-----------------------------------------------------*/
 		hSocket.onclose = function(event) {
-			delete hSocket;
+			delete hSocket; //deletes self (is this safe?)
 			hSocket = null;
 			if (iConStage > 0) { //Was the connection still open? Closed from the server side
 				log('<span style="color:red;">Server closed the connection.</span>');
-				setCon(0);//update values/controls for closed connection
 			}
+			setCon(0);//update values/controls for a closed connection
 		};
-		/*Any error occurred*/
-		hSocket.onerror = function(evt) {
-			log(evt.data);
+		/*-----------------------------------------------------
+		Any error occurred
+		event: object with error info {data, ...}
+		-----------------------------------------------------*/
+		hSocket.onerror = function(event) {
+			log(event.data);
 		};
 	};
 }
 /*-----------------------------------------------------
-User pressed the send button
+Event listener for keyboard key presses (key-up).
+event: Object with event data
 -----------------------------------------------------*/
-function onSend() {
-	if (iConStage < 3)
-		return;
-	strTextMessage = document.getElementById("idText").value
-	//log(strTextMessage)
-	document.getElementById("idText").value = '';//Clear the message text box
-	tools.sendTextMessage(hSocket, strTextMessage, strUserName, strColor="black")
-}
-/*-----------------------------------------------------
-Event listener for keyboard presses
------------------------------------------------------*/
-document.getElementById("idText").addEventListener("keyup", function(event) {
+document.getElementById("idText").addEventListener("keyup",function(event) {
 	event.preventDefault();
-	if (event.keyCode === 13) {
-		onSend(); //Click the send button
+	if (event.keyCode === 13) { //Return key
+		onSend(); //Press the send button
 	}
 });
+/*-----------------------------------------------------
+Send a text message contained in the text field to the server for broadcast.
+Typically only called when user presses the "Send" button or return key.
+-----------------------------------------------------*/
+function onSend() {
+	if (iConStage < 3) //Don't send to server unless fully authorized
+		return;
+	sTextMessage = document.getElementById("idText").value;
+	//log(sTextMessage);
+	document.getElementById("idText").value = '';//Clear the message text box
+	tools.sendTextMessage(hSocket, sTextMessage, sUserName, "black");
+}
