@@ -1,30 +1,30 @@
 <!-- Clientside  -->
 <!DOCTYPE html>
 <html>
-<head>
-	<title>JS-Chatroom</title>
-	<meta charset="utf-8"/>
-</head>
+	<head>
+		<title>JS-Chatroom</title>
+		<meta charset="utf-8"/>
+	</head>
 
-<body>
-	<style>
-		* { margin:0; padding:0; font-size:11px; font-family:arial; color:#444; }
-		body { padding:20px; }
-		#message-list { list-style-type:none; width:300px; height:300px; overflow:auto; border:1px solid #999; padding:20px; }
-		#message-list li { border-bottom:1px solid #ccc; padding-bottom:2px; margin-bottom:5px; }
-		code { font-family:courier; background:#eee; padding:2px 4px; }
-	</style>
-	<!-- Controls: --> 
-	<h2>Simple messaging service</h2>
-	<p id="output">Server settings:</p>
-	<input type="text" id="idIP" placeholder="IP and Port" value="localhost:8080"</input>
-	<input type="text" id="idUserName" placeholder="Username" value="A"</input>
-	<button id=idConnect type="button" onclick="onConnect()">Connect</button>
-	<ul id="message-list"></ul>
-	<input type="text" id="idText" placeholder="Text message" value=""</input>
-	<button id=idSend type="button" onclick="onSend()">Send</button>
-	<!--Place the javascripts at the end of the html body -->
-	<script src="tools.js"></script>
-	<script src="client.js"></script>
-</body>
+	<body>
+		<style>
+			* { margin:0; padding:0; font-size:11px; font-family:arial; color:#444; }
+			body { padding:20px; }
+			#message-list { list-style-type:none; width:300px; height:300px; overflow:auto; border:1px solid #999; padding:20px; }
+			#message-list li { border-bottom:1px solid #ccc; padding-bottom:2px; margin-bottom:5px; }
+			code { font-family:courier; background:#eee; padding:2px 4px; }
+		</style>
+		<!-- Controls: --> 
+		<h2>Simple messaging service</h2>
+		<p id="output">Server settings:</p>
+		<input type="text" id="idIP" placeholder="IP and Port" value="localhost:8080"</input>
+		<input type="text" id="idUserName" placeholder="Username" value="A"</input>
+		<button id=idConnect type="button" onclick="onConnect()">Connect</button>
+		<ul id="message-list"></ul>
+		<input type="text" id="idText" placeholder="Text message" value=""</input>
+		<button id=idSend type="button" onclick="onSend()">Send</button>
+		<!--Place the javascripts at the end of the html body -->
+		<script src="tools.js"></script>
+		<script src="client.js"></script>
+	</body>
 </html>
