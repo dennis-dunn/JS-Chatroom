@@ -28,28 +28,21 @@ console.log("Setting up server...");
 var server = http.createServer(function(request, response) {
 	// process any applicable HTTP request
 });
-
-server.listen(8080, function() { });
 console.log("Listening...");
-wsServer = new WebSocketServer({httpServer: server}); //create the server
+server.listen(8080, function() { }); //Open a port for listening
+wsServer = new WebSocketServer({httpServer: server}); //create the server, needs the listen-port
 
 /*-----------------------------------------------------
-WebSocket server connection accepted:
+Set the callback function for WebSocket server connection accepted:
 -----------------------------------------------------*/
 wsServer.on("request", function(request) {
 	var m_hConnection = request.accept(null, request.origin);
-	// we need to know client index to remove them on 'close' event
+	//Need to know client index to remove them on 'close' event:
 	var m_iIndex = vClients.push(new CClient(m_hConnection)) - 1;
 	console.log("Client has connected for authentication...");
 	tools.sendAuthentication(vClients[m_iIndex].m_pSocket, "Waiting for authentication...", "Admin",) // concat into a single string
 	/*-----------------------------------------------------
-	Handle all messages from users here:
-	-----------------------------------------------------*/
-	m_hConnection.on("connect", function(client) {
-		console.log("Not sure what this does.");
-	});
-	/*-----------------------------------------------------
-	Receive any message data from clients
+	Callback: Receive any message data from clients
 	-----------------------------------------------------*/
 	m_hConnection.on("message", function(hMessage) {
 		//console.log("on-message: ", hMessage); //[type *data]
@@ -60,9 +53,8 @@ wsServer.on("request", function(request) {
 				if (hJSON.type === "text") { //was "utf8"Process a text message
 					broadcastString(vClients, 'asis', hMessage.utf8Data);//Send it back to everyone as-is
 				}
-				else {
+				else
 					console.log("ERROR: Unhandled utf8 message:", hJSON);
-				}
 			}
 			else {
 				//All remaining unauthorized actions can be here:
@@ -73,14 +65,13 @@ wsServer.on("request", function(request) {
 					tools.sendCode(vClients[m_iIndex].m_pSocket, 'setCon', 3)
 					broadcastString(vClients, 'text', "New user '" + hUser.author + "' has joined")
 				}
-				else {
+				else
 					console.log("ERROR: Unauthorized utf8 message:", hJSON);
-				}
 			}
 		}
 	});
 	/*-----------------------------------------------------
-	Client has closed the connection. Delete the connection
+	Callback for client that closed the connection. Delete the connection
 	-----------------------------------------------------*/
 	m_hConnection.on("close", function(connection) {
 		vClients[m_iIndex].m_iStage = 0;
