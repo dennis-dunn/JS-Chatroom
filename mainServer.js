@@ -3,17 +3,20 @@ Contains information about a single client
 =====================================================*/
 class CClient{
 	/*-----------------------------------------------------
-	Construct with closed connection
+	Construct with closed connection and default values.
 	-----------------------------------------------------*/
-	constructor(pSocket = null) {
-		this.remove('', pSocket, 0);
+	constructor(sName = '', hSocket = null, iStage = 0) {
+		this.reset(sName, hSocket, iStage);
 	}
 	/*-----------------------------------------------------
-	Remove, set to closed connection
+	Reset to closed connection with default inputs, or specify the values manually.
+	sName:   
+	hSocket: The socket handle
+	iStage:  Integer connection stage
 	-----------------------------------------------------*/
-	remove(sName = '', pSocket = null, iStage = 0) {
+	reset(sName, hSocket, iStage) {
 		this.m_sName   = sName;   //User name
-		this.m_pSocket = pSocket; //Connection socket
+		this.m_hSocket = hSocket; //Connection socket
 		this.m_iStage  = iStage;  //The connection/authentication stage
 	}
 }
@@ -21,8 +24,8 @@ class CClient{
 var vClients = [];//Resizeable array containing instances of CClient
 
 console.log("Checking dependancies...");
-var WebSocketServer = require("websocket").server;
-var http = require("http");
+const WebSocketServer = require("websocket").server;
+const http = require("http");
 const tools = require("./tools");
 console.log("Setting up server...");
 var server = http.createServer(function(request, response) {
@@ -39,9 +42,10 @@ request: The server request object.
 wsServer.on("request", function(request) {
 	var m_hConnection = request.accept(null, request.origin);
 	//Need to know client index to remove them on 'close' event:
-	var m_iIndex = vClients.push(new CClient(m_hConnection)) - 1;
+	var m_iIndex = getClientIndex(null);//Find first empty slot in array
+	vClients[m_iIndex] = new CClient('', m_hConnection, 1);
 	console.log("Client has connected for authentication...");
-	tools.sendAuthentication(vClients[m_iIndex].m_pSocket, "Waiting for authentication...", "Admin",) // concat into a single string
+	tools.sendAuthentication(vClients[m_iIndex].m_hSocket, "Waiting for authentication...", "Admin",) // concat into a single string
 	/*-----------------------------------------------------
 	Callback: Receive any message data from clients
 	-----------------------------------------------------*/
@@ -63,11 +67,11 @@ wsServer.on("request", function(request) {
 					var hUser = hJSON.data;
 					vClients[m_iIndex].m_sName = hUser.author;//Remove from list
 					vClients[m_iIndex].m_iStage = 3;//Fully connected/authorized
-					if (!authenticate(vClients[m_iIndex].m_pSocket, 'TODO')) {
+					if (!authenticate(vClients[m_iIndex].m_hSocket, 'TODO')) {
 						//TODO reject client
 						return;
 					}
-					tools.sendCode(vClients[m_iIndex].m_pSocket, 'setCon', 3)
+					tools.sendCode(vClients[m_iIndex].m_hSocket, 'setCon', 3)
 					broadcastString(vClients, 'text', "New user '" + hUser.author + "' has joined")
 				}
 				else
@@ -77,17 +81,16 @@ wsServer.on("request", function(request) {
 	});
 	/*-----------------------------------------------------
 	Callback for client that closed the connection. Deletes the CClient socket from the array.
-	connection: The connection object that closed.
+	hConnection: The connection object that closed.
 	-----------------------------------------------------*/
-	m_hConnection.on("close", function(connection) {
+	m_hConnection.on("close", function(hConnection) {
 		vClients[m_iIndex].m_iStage = 0;
 		broadcastString(vClients, 'text', vClients[m_iIndex].m_sName + " left the server.")
-		delete vClients[m_iIndex];//delete the pointer, but keeps empty entry in array, don't want to alter the indices!
+		vClients[m_iIndex].reset('NONE',null,0);
 	});
 });
-
 /*-----------------------------------------------------
-Display a text message package add it to the list ctrl.
+Display a text message package by adding it to the console output.
 hJSON: An ojbect containing {time, text, color, author}.
 -----------------------------------------------------*/
 function displayTextMessage(hJSON) {
@@ -100,7 +103,7 @@ function displayTextMessage(hJSON) {
 	}
 }
 /*-----------------------------------------------------
-Broadcast a message to all connected clients:
+Broadcast a message to all connected clients.
 vClients: Array of current CClient instances.
 sType:    The type of string, usually 'text' or 'asis'.
 sOut:     The data to send.
@@ -118,30 +121,27 @@ function broadcastString(vClients, sType, sOut){
 	for (var i=0; i < vClients.length; i++) { //Cycle through all active clients and send the data to them.
 		if (vClients[i] != null && vClients[i].m_iStage > 1)
 			if (sType == 'text') {
-				tools.sendTextMessage(vClients[i].m_pSocket, sOut, "Admin")
+				tools.sendTextMessage(vClients[i].m_hSocket, sOut, "Admin")
 			}
 			else //'asis' Broadcast a buffer as-is
-				vClients[i].m_pSocket.send(sOut)
+				vClients[i].m_hSocket.send(sOut)
 	}
 };
 /*-----------------------------------------------------
-Find a client index in the array by its socket connection.
-UNUSED
-returns 0-based integer index.
+Find a client's index in the server's array by its socket connection handle.
+returns: 0-based integer index. If NOT found, returns the length of the array.
 -----------------------------------------------------*/
 function getClientIndex(connection) {
 	for (var i = 0; i < vClients.length; i++) {
-		if (vClients[i].m_pSocket == connection) {//Find the client by its connection
+		if (vClients[i].m_hSocket == connection) {//Find the client by its connection
 			console.log("getClientIndex found:" + i);
 			return i;
 		}
-		else if (vClients[i].m_pSocket == null) //Can't be!
-			console.log("ERROR: Client:" + i + ' null connection!');
+		else if (vClients[i].m_hSocket == null) //Can't be!
+			console.log("ERROR: Client[" + i + '] is null!');
 	}
-	console.log("ERROR: Unknown Client:", connection);
-	return -1; //NOT found
+	return vClients.length; //NOT found
 }
-
 /*-----------------------------------------------------
 TODO: Perform any authentication steps here with the client data.
 data: Data received from the client requesting authorization.
@@ -149,4 +149,12 @@ data: Data received from the client requesting authorization.
 function authenticate(hSocket, data) {
 	console.log('Checking user authentication...');
 	return true;//Success
+}
+/*-----------------------------------------------------
+Run a test to check that getClientIndex() works for the last array entry.
+return: true/false for success/fail.
+-----------------------------------------------------*/
+function testIndex() {
+	var i = vClients.length - 1;
+	return (getClientIndex(vClients[i]) == i);
 }
