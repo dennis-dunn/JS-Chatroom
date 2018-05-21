@@ -1,3 +1,7 @@
+/*=====================================================
+CLIENT SIDE
+=====================================================*/
+//Initialization:
 var bHosting = 0;
 var iConStage = 0;
 var sText = "";
@@ -6,13 +10,11 @@ var socketListen;
 var sUserName = "A";
 var _sIP = "";
 
-//Initialization:
+document.getElementById('idIP').value = "localhost:8080";
 setCon(0);//Set initial controls' states
-
 /*=====================================================
-CLIENT SIDE functions
+Function declarations
 =====================================================*/
-
 /*-----------------------------------------------------
 Display text add line to list ctrl.
 message: Plain text to print onto the cleint's list control.
@@ -59,15 +61,13 @@ iStage: Integer corresponding to the client's authorization stage.
 -----------------------------------------------------*/
 function setCon(iStage) {
 	//log('setCon ' + iStage)
-	
 	document.getElementById("idSend").disabled = (iStage != 0);
-
 	document.getElementById("idIP").disabled = (iStage > 0);
 	document.getElementById("idUserName").disabled = (iStage > 0);
 	document.getElementById("idSend").disabled = (iStage < 3); //Can't send until fully authenticated
 	document.getElementById("idText").disabled = (iStage < 3); //Can't send until fully authenticated
 	if (iStage == 0){ //closeCon
-		if (iConStage != 0) //Only display if previously connected
+		if (iConStage > 1) //Only display if previously connected
 			log('<span style="color:black;">Client disconnected</span>');
 		document.getElementById("idConnect").innerHTML = "Connect";
 	}
@@ -100,19 +100,20 @@ function handleCode(hSocket, data) {
 }
 /*-----------------------------------------------------
 Initiates a connection to a listening server by creating a socket.
-All fcuntions contained inside
+All callback functions contained inside.
 -----------------------------------------------------*/
 function connect() {
 	sUserName = document.getElementById("idUserName").value
 	_sIP = document.getElementById("idIP").value
 	setCon(1);//Connection initaited, requesting server to accept
 	log('Client "' + sUserName + '" is connecting...');
-	
+	var sAddress = 'ws://' + _sIP;
 	try { // Create a socket instance
-		hSocket = new WebSocket('ws://' + _sIP);//was ws://localhost:8080');
+		hSocket = new WebSocket(sAddress);//was ws://localhost:8080');
 	}
 	catch (e) {
-		log('<span style="color:red;">Client couldn\'t connect to host ' + _sIP + '</span>');
+		setCon(0);
+		log('<span style="color:red;">Client couldn\'t connect to host ' + sAddress + '</span>');
 		return;
 	}
 	/*-----------------------------------------------------

@@ -121,7 +121,7 @@ function broadcastString(vClients, sType, sOut){
 	for (var i=0; i < vClients.length; i++) { //Cycle through all active clients and send the data to them.
 		if (vClients[i] != null && vClients[i].m_iStage > 1)
 			if (sType == 'text') {
-				tools.sendTextMessage(vClients[i].m_hSocket, sOut, "Admin")
+				tools.sendTextMessage(vClients[i].m_hSocket, sOut, "Admin", "black")
 			}
 			else //'asis' Broadcast a buffer as-is
 				vClients[i].m_hSocket.send(sOut)

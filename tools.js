@@ -23,7 +23,7 @@
 	sUserName: Name of the author of the message.
 	sColor:    Color to display the text in.
 	-----------------------------------------------------*/
-	exports.sendTextMessage = function (hSocket, sText, sUserName, sColor="black") {
+	exports.sendTextMessage = function (hSocket, sText, sUserName, sColor) {
 		var hPacket = {
 			time: (new Date()).getTime(),
 			text: sText,
